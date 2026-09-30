@@ -1,0 +1,6 @@
+{
+  "name": "Zenora - Workforce Management Platform",
+  "description": "Enterprise multi-tenant workforce management SaaS platform. Everything your workforce needs in one platform.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

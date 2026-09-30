@@ -1,0 +1,11 @@
+node_modules/
+frontend/node_modules/
+functions/node_modules/
+frontend/dist/
+.firebase/
+.env
+.env.*
+!.env.example
+firebase-debug.log
+firestore-debug.log
+ui-debug.log

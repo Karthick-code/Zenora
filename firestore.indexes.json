@@ -1,0 +1,9 @@
+{
+  "indexes": [
+    {"collectionGroup":"employees","queryScope":"COLLECTION","fields":[{"fieldPath":"employee_code","order":"ASCENDING"}]},
+    {"collectionGroup":"leave_applications","queryScope":"COLLECTION","fields":[{"fieldPath":"approver_id","order":"ASCENDING"},{"fieldPath":"status","order":"ASCENDING"}]},
+    {"collectionGroup":"attendance_records","queryScope":"COLLECTION","fields":[{"fieldPath":"employee_id","order":"ASCENDING"},{"fieldPath":"date","order":"DESCENDING"}]},
+    {"collectionGroup":"biometric_events","queryScope":"COLLECTION","fields":[{"fieldPath":"employee_id","order":"ASCENDING"},{"fieldPath":"event_time","order":"DESCENDING"}]}
+  ],
+  "fieldOverrides": []
+}

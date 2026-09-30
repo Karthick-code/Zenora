@@ -1,0 +1,130 @@
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import React, { useState, useEffect } from 'react';
+import { Search, Plus, Eye, X, CheckCircle2, AlertCircle } from 'lucide-react';
+import api from '../services/api';
+import { useAuth } from '../context/AuthContext';
+export const EmployeesPage = () => {
+    const { user } = useAuth();
+    const [employees, setEmployees] = useState([]);
+    const [departments, setDepartments] = useState([]);
+    const [designations, setDesignations] = useState([]);
+    const [locations, setLocations] = useState([]);
+    const [shifts, setShifts] = useState([]);
+    const [loading, setLoading] = useState(true);
+    // Filters
+    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedDept, setSelectedDept] = useState('');
+    const [selectedStatus, setSelectedStatus] = useState('');
+    // Modals
+    const [createModalOpen, setCreateModalOpen] = useState(false);
+    const [selectedEmployee, setSelectedEmployee] = useState(null);
+    const [activeTab, setActiveTab] = useState('overview');
+    const [actionLoading, setActionLoading] = useState(false);
+    const [errorMsg, setErrorMsg] = useState('');
+    const [successMsg, setSuccessMsg] = useState('');
+    // Form State
+    const [formData, setFormData] = useState({
+        employeeCode: '',
+        firstName: '',
+        lastName: '',
+        email: '',
+        phone: '',
+        gender: 'Female',
+        dateOfBirth: '1995-05-15',
+        joiningDate: new Date().toISOString().split('T')[0],
+        departmentId: '',
+        designationId: '',
+        locationId: '',
+        shiftId: '',
+        reportingManagerId: '',
+        employmentType: 'FULL_TIME',
+        employmentStatus: 'ACTIVE',
+        baseSalary: 120000,
+        bankName: 'Silicon Valley Bank',
+        bankAccountNo: '9876543210',
+        bankIfsc: 'SVB000123',
+        panTaxId: 'ABCDE1234F',
+        pfUanNumber: '100987654321',
+        createLoginAccount: true,
+        role: 'EMPLOYEE'
+    });
+    const loadData = async () => {
+        setLoading(true);
+        try {
+            const [empRes, deptRes, desigRes, locRes, shiftRes] = await Promise.all([
+                api.get('/employees', { params: { search: searchTerm || undefined, departmentId: selectedDept || undefined, status: selectedStatus || undefined } }),
+                api.get('/employees/meta/departments'),
+                api.get('/employees/meta/designations'),
+                api.get('/employees/meta/locations'),
+                api.get('/employees/meta/shifts')
+            ]);
+            if (empRes.data.success)
+                setEmployees(empRes.data.employees);
+            if (deptRes.data.success)
+                setDepartments(deptRes.data.departments);
+            if (desigRes.data.success)
+                setDesignations(desigRes.data.designations);
+            if (locRes.data.success)
+                setLocations(locRes.data.locations);
+            if (shiftRes.data.success)
+                setShifts(shiftRes.data.shifts);
+        }
+        catch (e) {
+            console.error(e);
+        }
+        finally {
+            setLoading(false);
+        }
+    };
+    useEffect(() => {
+        loadData();
+    }, [searchTerm, selectedDept, selectedStatus]);
+    const viewEmployeeDetails = async (id) => {
+        try {
+            const res = await api.get(`/employees/${id}`);
+            if (res.data.success) {
+                setSelectedEmployee(res.data);
+                setActiveTab('overview');
+            }
+        }
+        catch (err) {
+            alert(err.response?.data?.message || 'Failed to load employee details');
+        }
+    };
+    const handleCreateEmployee = async (e) => {
+        e.preventDefault();
+        setActionLoading(true);
+        setErrorMsg('');
+        setSuccessMsg('');
+        try {
+            const res = await api.post('/employees', formData);
+            if (res.data.success) {
+                setSuccessMsg('Employee registered successfully.');
+                setCreateModalOpen(false);
+                loadData();
+            }
+        }
+        catch (err) {
+            setErrorMsg(err.response?.data?.message || 'Failed to create employee');
+        }
+        finally {
+            setActionLoading(false);
+        }
+    };
+    const isHrOrOwner = ['PLATFORM_OWNER', 'ORG_OWNER', 'HR_ADMIN'].includes(user?.role || '');
+    return (_jsxs("div", { className: "space-y-6", children: [_jsxs("div", { className: "flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4", children: [_jsxs("div", { children: [_jsx("h1", { className: "text-xl font-bold tracking-tight text-slate-900", children: "Workforce Directory" }), _jsx("p", { className: "text-xs text-slate-500 mt-0.5", children: "Manage employee records, organizational hierarchy, and employment status." })] }), isHrOrOwner && (_jsxs("button", { onClick: () => {
+                            if (departments.length > 0 && !formData.departmentId) {
+                                setFormData(prev => ({
+                                    ...prev,
+                                    departmentId: departments[0].id,
+                                    locationId: locations[0]?.id || '',
+                                    shiftId: shifts[0]?.id || ''
+                                }));
+                            }
+                            setCreateModalOpen(true);
+                        }, className: "px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-xs", children: [_jsx(Plus, { className: "w-4 h-4" }), _jsx("span", { children: "Add Employee" })] }))] }), successMsg && (_jsxs("div", { className: "p-3 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-lg text-xs flex items-center gap-2", children: [_jsx(CheckCircle2, { className: "w-4 h-4" }), _jsx("span", { children: successMsg })] })), _jsxs("div", { className: "bg-white p-3 rounded-xl border border-slate-200 shadow-xs flex flex-wrap items-center gap-3", children: [_jsxs("div", { className: "flex-1 min-w-[200px] relative", children: [_jsx(Search, { className: "w-4 h-4 text-slate-400 absolute left-3 top-2.5" }), _jsx("input", { type: "text", placeholder: "Search by name, email, employee code...", value: searchTerm, onChange: e => setSearchTerm(e.target.value), className: "w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-slate-900" })] }), _jsxs("select", { value: selectedDept, onChange: e => setSelectedDept(e.target.value), className: "text-xs bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-hidden text-slate-700", children: [_jsx("option", { value: "", children: "All Departments" }), departments.map(d => (_jsx("option", { value: d.id, children: d.name }, d.id)))] }), _jsxs("select", { value: selectedStatus, onChange: e => setSelectedStatus(e.target.value), className: "text-xs bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-hidden text-slate-700", children: [_jsx("option", { value: "", children: "All Statuses" }), _jsx("option", { value: "ACTIVE", children: "ACTIVE" }), _jsx("option", { value: "CONFIRMED", children: "CONFIRMED" }), _jsx("option", { value: "PROBATION", children: "PROBATION" }), _jsx("option", { value: "NOTICE_PERIOD", children: "NOTICE PERIOD" }), _jsx("option", { value: "EXITED", children: "EXITED" })] })] }), _jsx("div", { className: "bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden", children: _jsx("div", { className: "overflow-x-auto", children: _jsxs("table", { className: "w-full text-left text-xs", children: [_jsx("thead", { className: "bg-slate-50/70 border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider text-[11px]", children: _jsxs("tr", { children: [_jsx("th", { className: "py-3 px-4", children: "Employee" }), _jsx("th", { className: "py-3 px-4", children: "Department & Role" }), _jsx("th", { className: "py-3 px-4", children: "Reporting Manager" }), _jsx("th", { className: "py-3 px-4", children: "Joining Date" }), _jsx("th", { className: "py-3 px-4", children: "Status" }), isHrOrOwner && _jsx("th", { className: "py-3 px-4 text-right", children: "Base Salary" }), _jsx("th", { className: "py-3 px-4 text-center", children: "Action" })] }) }), _jsx("tbody", { className: "divide-y divide-slate-100", children: loading ? (_jsx("tr", { children: _jsx("td", { colSpan: 7, className: "py-8 text-center text-slate-400", children: "Loading directory records..." }) })) : employees.length === 0 ? (_jsx("tr", { children: _jsx("td", { colSpan: 7, className: "py-8 text-center text-slate-500", children: "No employees match your search criteria." }) })) : (employees.map(emp => (_jsxs("tr", { className: "hover:bg-slate-50/60 transition-colors", children: [_jsxs("td", { className: "py-3 px-4", children: [_jsxs("div", { className: "font-semibold text-slate-900", children: [emp.first_name, " ", emp.last_name] }), _jsxs("div", { className: "text-[11px] text-slate-500 font-mono", children: [emp.employee_code, " \u00B7 ", emp.email] })] }), _jsxs("td", { className: "py-3 px-4", children: [_jsx("div", { className: "font-medium text-slate-800", children: emp.designation_title || 'Specialist' }), _jsx("div", { className: "text-[11px] text-slate-500", children: emp.department_name || 'Engineering' })] }), _jsx("td", { className: "py-3 px-4", children: emp.manager_first_name ? (_jsxs("span", { className: "font-medium text-slate-700", children: [emp.manager_first_name, " ", emp.manager_last_name] })) : (_jsx("span", { className: "text-slate-400 italic", children: "Executive / None" })) }), _jsx("td", { className: "py-3 px-4 font-mono text-slate-600", children: emp.joining_date }), _jsx("td", { className: "py-3 px-4", children: _jsx("span", { className: `text-[10px] font-mono font-bold px-2 py-0.5 rounded ${emp.employment_status === 'CONFIRMED' || emp.employment_status === 'ACTIVE'
+                                                    ? 'bg-emerald-50 text-emerald-700'
+                                                    : emp.employment_status === 'PROBATION'
+                                                        ? 'bg-amber-50 text-amber-700'
+                                                        : 'bg-slate-100 text-slate-700'}`, children: emp.employment_status }) }), isHrOrOwner && (_jsxs("td", { className: "py-3 px-4 text-right font-mono font-bold text-slate-900 tabular-nums", children: ["$", emp.base_salary ? emp.base_salary.toLocaleString() : '0', "/yr"] })), _jsx("td", { className: "py-3 px-4 text-center", children: _jsx("button", { onClick: () => viewEmployeeDetails(emp.id), className: "p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors", title: "View Full Profile", children: _jsx(Eye, { className: "w-4 h-4" }) }) })] }, emp.id)))) })] }) }) }), selectedEmployee && (_jsx("div", { className: "fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4", children: _jsxs("div", { className: "bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden", children: [_jsxs("div", { className: "p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50", children: [_jsxs("div", { className: "flex items-center gap-3", children: [_jsxs("div", { className: "w-10 h-10 rounded-full bg-slate-900 text-white font-bold flex items-center justify-center text-sm", children: [selectedEmployee.employee.first_name[0], selectedEmployee.employee.last_name[0]] }), _jsxs("div", { children: [_jsxs("h3", { className: "text-base font-bold text-slate-900", children: [selectedEmployee.employee.first_name, " ", selectedEmployee.employee.last_name] }), _jsxs("div", { className: "text-xs text-slate-500 font-mono", children: [selectedEmployee.employee.employee_code, " \u00B7 ", selectedEmployee.employee.designation_title, " \u00B7 ", selectedEmployee.employee.department_name] })] })] }), _jsx("button", { onClick: () => setSelectedEmployee(null), className: "p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-200 transition-colors", children: _jsx(X, { className: "w-5 h-5" }) })] }), _jsxs("div", { className: "flex border-b border-slate-200 px-5 text-xs font-semibold", children: [_jsx("button", { onClick: () => setActiveTab('overview'), className: `py-3 px-3 border-b-2 transition-colors ${activeTab === 'overview' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'}`, children: "Employment & Financial" }), _jsx("button", { onClick: () => setActiveTab('hierarchy'), className: `py-3 px-3 border-b-2 transition-colors ${activeTab === 'hierarchy' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'}`, children: "Reporting Hierarchy" }), _jsxs("button", { onClick: () => setActiveTab('leaves'), className: `py-3 px-3 border-b-2 transition-colors ${activeTab === 'leaves' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'}`, children: ["Leave Balances (", selectedEmployee.leaveBalances?.length || 0, ")"] }), _jsxs("button", { onClick: () => setActiveTab('assets'), className: `py-3 px-3 border-b-2 transition-colors ${activeTab === 'assets' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'}`, children: ["Assigned Assets (", selectedEmployee.assets?.length || 0, ")"] })] }), _jsxs("div", { className: "p-5 overflow-y-auto space-y-4 text-xs", children: [activeTab === 'overview' && (_jsxs("div", { className: "grid grid-cols-2 gap-4", children: [_jsxs("div", { className: "p-3 rounded-lg border border-slate-100 bg-slate-50", children: [_jsx("span", { className: "text-[11px] font-semibold text-slate-400 uppercase tracking-wider block", children: "Email & Contact" }), _jsx("span", { className: "text-slate-900 font-medium block mt-1", children: selectedEmployee.employee.email }), _jsx("span", { className: "text-slate-600 block mt-0.5", children: selectedEmployee.employee.phone || 'No phone' })] }), _jsxs("div", { className: "p-3 rounded-lg border border-slate-100 bg-slate-50", children: [_jsx("span", { className: "text-[11px] font-semibold text-slate-400 uppercase tracking-wider block", children: "Office Location & Shift" }), _jsx("span", { className: "text-slate-900 font-medium block mt-1", children: selectedEmployee.employee.location_name || 'San Francisco HQ' }), _jsxs("span", { className: "text-slate-600 block mt-0.5", children: [selectedEmployee.employee.shift_name, " (", selectedEmployee.employee.shift_start, " - ", selectedEmployee.employee.shift_end, ")"] })] }), _jsxs("div", { className: "p-3 rounded-lg border border-slate-100 bg-slate-50", children: [_jsx("span", { className: "text-[11px] font-semibold text-slate-400 uppercase tracking-wider block", children: "Annual Base Compensation" }), _jsxs("span", { className: "text-slate-900 font-bold font-mono text-sm block mt-1 tabular-nums", children: ["$", selectedEmployee.employee.base_salary?.toLocaleString(), " USD/year"] }), _jsx("span", { className: "text-slate-500 text-[11px] block mt-0.5", children: "Pay Frequency: Monthly" })] }), _jsxs("div", { className: "p-3 rounded-lg border border-slate-100 bg-slate-50", children: [_jsx("span", { className: "text-[11px] font-semibold text-slate-400 uppercase tracking-wider block", children: "Banking & Direct Deposit" }), _jsx("span", { className: "text-slate-900 font-medium block mt-1", children: selectedEmployee.employee.bank_name || 'Not provided' }), _jsxs("span", { className: "text-slate-600 font-mono block mt-0.5", children: ["A/C: ", selectedEmployee.employee.bank_account_no || 'N/A'] })] })] })), activeTab === 'hierarchy' && (_jsxs("div", { className: "space-y-4", children: [_jsxs("div", { className: "p-4 rounded-lg border border-slate-200 bg-slate-50", children: [_jsx("span", { className: "text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2", children: "Designated Reporting Manager (Approver)" }), selectedEmployee.employee.manager_first_name ? (_jsxs("div", { className: "flex items-center gap-3", children: [_jsx("div", { className: "w-8 h-8 rounded-full bg-slate-800 text-white font-bold flex items-center justify-center text-xs", children: selectedEmployee.employee.manager_first_name[0] }), _jsxs("div", { children: [_jsxs("div", { className: "font-bold text-slate-900", children: [selectedEmployee.employee.manager_first_name, " ", selectedEmployee.employee.manager_last_name] }), _jsx("div", { className: "text-slate-500 text-[11px]", children: selectedEmployee.employee.manager_email })] })] })) : (_jsx("div", { className: "text-slate-500 italic", children: "No reporting manager assigned (Executive)." }))] }), _jsxs("div", { className: "p-4 rounded-lg border border-slate-200", children: [_jsxs("span", { className: "text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2", children: ["Direct Reports (", selectedEmployee.directReports?.length || 0, ")"] }), selectedEmployee.directReports?.length === 0 ? (_jsx("div", { className: "text-slate-500 italic", children: "No direct reports." })) : (_jsx("div", { className: "divide-y divide-slate-100", children: selectedEmployee.directReports.map((dr) => (_jsxs("div", { className: "py-2 flex items-center justify-between", children: [_jsxs("div", { children: [_jsxs("span", { className: "font-semibold text-slate-900", children: [dr.first_name, " ", dr.last_name] }), _jsx("span", { className: "text-slate-400 text-[11px] ml-2 font-mono", children: dr.employee_code })] }), _jsx("span", { className: "text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded", children: dr.employment_status })] }, dr.id))) }))] })] })), activeTab === 'leaves' && (_jsx("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-3", children: selectedEmployee.leaveBalances?.map((lb) => (_jsxs("div", { className: "p-3 rounded-lg border border-slate-200 bg-white", children: [_jsx("div", { className: "font-semibold text-slate-800", children: lb.leave_type_name }), _jsxs("div", { className: "mt-2 text-xl font-bold font-mono text-slate-900 tabular-nums", children: [lb.balance, " ", _jsx("span", { className: "text-xs font-normal text-slate-500", children: "days balance" })] }), _jsxs("div", { className: "text-[11px] text-slate-500 mt-1", children: ["Allocated: ", lb.allocated, "d \u00B7 Used: ", lb.used, "d \u00B7 Pending: ", lb.pending, "d"] })] }, lb.id))) })), activeTab === 'assets' && (_jsx("div", { className: "space-y-2", children: selectedEmployee.assets?.length === 0 ? (_jsx("div", { className: "text-slate-500 py-4 text-center", children: "No company assets assigned yet." })) : (selectedEmployee.assets.map((ast) => (_jsxs("div", { className: "p-3 rounded-lg border border-slate-200 flex items-center justify-between", children: [_jsxs("div", { children: [_jsx("div", { className: "font-semibold text-slate-900", children: ast.name }), _jsxs("div", { className: "text-[11px] text-slate-500 font-mono", children: ["Tag: ", ast.asset_tag, " \u00B7 S/N: ", ast.serial_number || 'N/A'] })] }), _jsxs("span", { className: "text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-semibold", children: ["Condition: ", ast.condition] })] }, ast.id)))) }))] }), _jsx("div", { className: "p-3 border-t border-slate-100 bg-slate-50 flex justify-end", children: _jsx("button", { onClick: () => setSelectedEmployee(null), className: "px-4 py-2 bg-slate-900 text-white rounded-lg text-xs font-semibold", children: "Close" }) })] }) })), createModalOpen && (_jsx("div", { className: "fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4", children: _jsxs("form", { onSubmit: handleCreateEmployee, className: "bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden", children: [_jsxs("div", { className: "p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50", children: [_jsx("h3", { className: "text-sm font-bold text-slate-900", children: "Register New Workforce Member" }), _jsx("button", { type: "button", onClick: () => setCreateModalOpen(false), children: _jsx(X, { className: "w-5 h-5 text-slate-400" }) })] }), errorMsg && (_jsxs("div", { className: "m-4 p-3 bg-rose-50 text-rose-800 border border-rose-200 rounded-lg text-xs flex items-center gap-2", children: [_jsx(AlertCircle, { className: "w-4 h-4 shrink-0" }), _jsx("span", { children: errorMsg })] })), _jsxs("div", { className: "p-5 overflow-y-auto space-y-4 text-xs", children: [_jsxs("div", { className: "grid grid-cols-2 gap-3", children: [_jsxs("div", { children: [_jsx("label", { className: "block text-[11px] font-semibold text-slate-700 mb-1", children: "First Name *" }), _jsx("input", { type: "text", required: true, value: formData.firstName, onChange: e => setFormData({ ...formData, firstName: e.target.value }), className: "w-full p-2 bg-slate-50 border border-slate-200 rounded-lg" })] }), _jsxs("div", { children: [_jsx("label", { className: "block text-[11px] font-semibold text-slate-700 mb-1", children: "Last Name *" }), _jsx("input", { type: "text", required: true, value: formData.lastName, onChange: e => setFormData({ ...formData, lastName: e.target.value }), className: "w-full p-2 bg-slate-50 border border-slate-200 rounded-lg" })] })] }), _jsxs("div", { className: "grid grid-cols-2 gap-3", children: [_jsxs("div", { children: [_jsx("label", { className: "block text-[11px] font-semibold text-slate-700 mb-1", children: "Work Email *" }), _jsx("input", { type: "email", required: true, value: formData.email, onChange: e => setFormData({ ...formData, email: e.target.value }), className: "w-full p-2 bg-slate-50 border border-slate-200 rounded-lg" })] }), _jsxs("div", { children: [_jsx("label", { className: "block text-[11px] font-semibold text-slate-700 mb-1", children: "Joining Date *" }), _jsx("input", { type: "date", required: true, value: formData.joiningDate, onChange: e => setFormData({ ...formData, joiningDate: e.target.value }), className: "w-full p-2 bg-slate-50 border border-slate-200 rounded-lg" })] })] }), _jsxs("div", { className: "grid grid-cols-3 gap-3", children: [_jsxs("div", { children: [_jsx("label", { className: "block text-[11px] font-semibold text-slate-700 mb-1", children: "Department" }), _jsx("select", { value: formData.departmentId, onChange: e => setFormData({ ...formData, departmentId: e.target.value }), className: "w-full p-2 bg-slate-50 border border-slate-200 rounded-lg", children: departments.map(d => (_jsx("option", { value: d.id, children: d.name }, d.id))) })] }), _jsxs("div", { children: [_jsx("label", { className: "block text-[11px] font-semibold text-slate-700 mb-1", children: "Designation" }), _jsxs("select", { value: formData.designationId, onChange: e => setFormData({ ...formData, designationId: e.target.value }), className: "w-full p-2 bg-slate-50 border border-slate-200 rounded-lg", children: [_jsx("option", { value: "", children: "Select Role" }), designations.map(des => (_jsx("option", { value: des.id, children: des.title }, des.id)))] })] }), _jsxs("div", { children: [_jsx("label", { className: "block text-[11px] font-semibold text-slate-700 mb-1", children: "Reporting Manager" }), _jsxs("select", { value: formData.reportingManagerId, onChange: e => setFormData({ ...formData, reportingManagerId: e.target.value }), className: "w-full p-2 bg-slate-50 border border-slate-200 rounded-lg", children: [_jsx("option", { value: "", children: "No Manager (Self-directed)" }), employees.map(m => (_jsxs("option", { value: m.id, children: [m.first_name, " ", m.last_name] }, m.id)))] })] })] }), _jsxs("div", { className: "grid grid-cols-2 gap-3", children: [_jsxs("div", { children: [_jsx("label", { className: "block text-[11px] font-semibold text-slate-700 mb-1", children: "Annual Base Salary (USD)" }), _jsx("input", { type: "number", value: formData.baseSalary, onChange: e => setFormData({ ...formData, baseSalary: Number(e.target.value) }), className: "w-full p-2 bg-slate-50 border border-slate-200 rounded-lg font-mono" })] }), _jsxs("div", { children: [_jsx("label", { className: "block text-[11px] font-semibold text-slate-700 mb-1", children: "Employment Status" }), _jsxs("select", { value: formData.employmentStatus, onChange: e => setFormData({ ...formData, employmentStatus: e.target.value }), className: "w-full p-2 bg-slate-50 border border-slate-200 rounded-lg", children: [_jsx("option", { value: "ACTIVE", children: "ACTIVE" }), _jsx("option", { value: "PROBATION", children: "PROBATION" }), _jsx("option", { value: "CONFIRMED", children: "CONFIRMED" })] })] })] }), _jsxs("div", { className: "p-3 bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-between", children: [_jsxs("div", { children: [_jsx("span", { className: "font-semibold text-slate-900 block", children: "Create Web Application Account" }), _jsx("span", { className: "text-[11px] text-slate-500", children: "Enables login access with default password (password123)" })] }), _jsx("input", { type: "checkbox", checked: formData.createLoginAccount, onChange: e => setFormData({ ...formData, createLoginAccount: e.target.checked }), className: "w-4 h-4 text-slate-900 rounded" })] })] }), _jsxs("div", { className: "p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-end gap-2", children: [_jsx("button", { type: "button", onClick: () => setCreateModalOpen(false), className: "px-4 py-2 border border-slate-200 text-slate-700 rounded-lg text-xs font-semibold hover:bg-slate-100", children: "Cancel" }), _jsx("button", { type: "submit", disabled: actionLoading, className: "px-4 py-2 bg-slate-900 text-white rounded-lg text-xs font-semibold hover:bg-slate-800 disabled:opacity-50", children: actionLoading ? 'Saving...' : 'Register Employee' })] })] }) }))] }));
+};
