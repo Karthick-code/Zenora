@@ -1,7 +1,7 @@
 import { httpsCallable } from 'firebase/functions';
 import { functions } from './firebase';
 
-const client = httpsCallable(functions, 'zenoraApi');
+const client = httpsCallable(functions);
 
 const request = async (method, path, body = {}, params = {}) => {
   try {
