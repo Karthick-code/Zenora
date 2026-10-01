@@ -24,7 +24,7 @@ export const AuthPage = () => {
 
   const handleLogin = async (e) => {
     e.preventDefault(); setLoading(true); clearMessages();
-    try { await login(identifier, password, companySlug); navigate('/app'); }
+    try { const nextUser = await login(identifier, password, companySlug); navigate(nextUser?.role === 'PLATFORM_OWNER' ? '/master-admin/dashboard' : '/app'); }
     catch (err) { setErrorMsg(err.response?.data?.message || 'Login failed. Check your credentials.'); }
     finally { setLoading(false); }
   };
@@ -76,7 +76,7 @@ export const AuthPage = () => {
           <div><label className="block font-semibold mb-1">Email or Employee ID</label><div className="relative"><Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3" /><input type="text" required value={identifier} onChange={e => setIdentifier(e.target.value)} className={`${inputClass} pl-9`} /></div></div>
           <div><label className="block font-semibold mb-1">Company Workspace / Slug</label><div className="relative"><Building2 className="w-4 h-4 text-slate-400 absolute left-3 top-3" /><input value={companySlug} onChange={e => setCompanySlug(e.target.value)} placeholder="Required for employee ID login" className={`${inputClass} pl-9`} /></div></div>
           <div><label className="block font-semibold mb-1">Password</label><div className="relative"><Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" /><input type="password" required value={password} onChange={e => setPassword(e.target.value)} className={`${inputClass} pl-9`} /></div></div>
-          <div className="text-right"><button type="button" onClick={() => { setMode('forgot'); clearMessages(); }} className="text-slate-600 hover:text-slate-900 font-semibold">Forgot password?</button></div>
+          <div className="text-right"><button type="button" onClick={() => { setMode('forgot'); clearMessages(); }} className="text-slate-600 hover:text-slate-900 font-semibold">Forgot password?</button></div><div className="text-right mt-2"><a href="/master-admin" className="text-[11px] text-slate-500 hover:text-slate-900 font-semibold">Zenora Master Admin →</a></div>
           <button disabled={loading} className="w-full py-2.5 bg-slate-900 text-white rounded-lg font-semibold disabled:opacity-50">{loading ? 'Authenticating...' : 'Sign In'}</button>
         </form> : <form onSubmit={handleRegister} className="space-y-3 text-xs">
           {['companyName','industry','companySize','firstName','lastName','email','password'].map(field => <div key={field}><label className="block font-semibold mb-1">{field === 'companyName' ? 'Company Name *' : field === 'firstName' ? 'First Name *' : field === 'lastName' ? 'Last Name *' : field === 'email' ? 'Work Email *' : field === 'password' ? 'Master Password *' : field === 'industry' ? 'Industry' : 'Company Size'}</label><input type={field === 'email' ? 'email' : field === 'password' ? 'password' : 'text'} required={['companyName','firstName','lastName','email','password'].includes(field)} value={regForm[field]} onChange={e => setRegForm({ ...regForm, [field]: e.target.value })} className={inputClass} /></div>)}

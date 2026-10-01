@@ -80,3 +80,25 @@ Publish directory: dist
 ```
 
 Add the six `VITE_FIREBASE_*` values to Netlify environment variables.
+
+## Zenora Master Admin — Spark plan
+
+The project has **no Firebase Cloud Functions** and does not require Blaze. The Zenora platform owner is a Firebase Authentication account whose Firestore profile has `role: PLATFORM_OWNER` and `organization_id: null`.
+
+### First-time master admin bootstrap
+
+Use the local script in `scripts/`:
+
+1. Firebase Console → Project settings → Service accounts → Generate new private key.
+2. Save the JSON outside the project/frontend.
+3. Open a terminal in `scripts/` and run `npm install`.
+4. Set `GOOGLE_APPLICATION_CREDENTIALS` to the JSON path.
+5. Run `npm run bootstrap`.
+6. Delete/secure the service-account JSON after completion.
+7. Open `/master-admin` in the deployed Zenora app.
+
+The script uses Firebase Admin SDK **locally only**. It is not a Cloud Function and does not require the Blaze plan.
+
+### Master admin permissions
+
+`PLATFORM_OWNER` can access platform company metadata, platform helpdesk tickets, and password-reset requests. The Firestore rules do not grant platform owners access to company employee/workforce subcollections. Company admins remain responsible for their own workforce data.

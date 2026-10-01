@@ -8,3 +8,9 @@ frontend/dist/
 firebase-debug.log
 firestore-debug.log
 ui-debug.log
+
+# Local Firebase Admin credentials / bootstrap files
+scripts/*.json
+scripts/*.key
+scripts/*.pem
+service-account*.json

@@ -1,0 +1,4 @@
+*.json
+*.key
+*.pem
+service-account*.json
