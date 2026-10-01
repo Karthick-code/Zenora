@@ -18,7 +18,7 @@ if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+export const db = getFirestore(app,firebaseConfig.projectId);
 export const storage = getStorage(app);
 
 // Used only when an HR/admin creates an employee login. This keeps the currently
