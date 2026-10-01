@@ -1,10 +1,9 @@
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
-import { getFunctions } from 'firebase/functions';
 
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
@@ -19,7 +18,15 @@ if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app,firebaseConfig.projectId);
+export const db = getFirestore(app);
 export const storage = getStorage(app);
-export const functions = getFunctions(app);
+
+// Used only when an HR/admin creates an employee login. This keeps the currently
+// signed-in administrator logged in while the new employee account is created.
+export const createSecondaryAuth = () => {
+  const name = 'zenora-secondary-auth';
+  const secondaryApp = getApps().find((item) => item.name === name) || initializeApp(firebaseConfig, name);
+  return getAuth(secondaryApp);
+};
+
 export default app;

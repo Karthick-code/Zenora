@@ -1,7 +1,15 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    // Storage access is intentionally brokered through trusted Firebase Functions.
-    match /{allPaths=**} { allow read, write: if false; }
+    // Storage is currently used only by authenticated Zenora users. Files should
+    // be stored under a company-owned path such as organizations/{orgId}/... .
+    match /organizations/{orgId}/{allPaths=**} {
+      allow read, write: if request.auth != null
+        && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.organization_id == orgId;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
   }
 }

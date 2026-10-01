@@ -1,23 +1,101 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // All business-data reads/writes go through Firebase Cloud Functions.
-    // This keeps tenant isolation and role checks in one trusted layer.
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isPlatformOwner() {
+      return signedIn() && userDoc().data.role == 'PLATFORM_OWNER';
+    }
+
+    function myOrg() {
+      return signedIn() && userDoc().data.organization_id != null;
+    }
+
+    function isMember(orgId) {
+      return signedIn() && userDoc().data.organization_id == orgId;
+    }
+
+    function isCompanyAdmin(orgId) {
+      return isMember(orgId) && userDoc().data.role in ['ORG_OWNER', 'HR_ADMIN'];
+    }
+
+    function isManager(orgId) {
+      return isMember(orgId) && userDoc().data.role == 'MANAGER';
+    }
+
     match /users/{uid} {
-      allow read: if request.auth != null && request.auth.uid == uid;
-      allow write: if false;
+      // A newly authenticated user can create only their own ORG_OWNER profile,
+      // and only as part of the same atomic company-registration batch.
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.role == 'ORG_OWNER'
+        && request.resource.data.organization_id != null
+        && getAfter(/databases/$(database)/documents/organizations/$(request.resource.data.organization_id)).data.status == 'ACTIVE';
+
+      allow read: if signedIn() && request.auth.uid == uid;
+
+      // Company admins may create/update employee login profiles in their own org.
+      allow create: if signedIn()
+        && request.resource.data.organization_id != null
+        && isCompanyAdmin(request.resource.data.organization_id)
+        && request.resource.data.role != 'PLATFORM_OWNER';
+
+      allow update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.organization_id == resource.data.organization_id
+        && request.resource.data.role == resource.data.role;
+
+      allow update: if signedIn()
+        && resource.data.organization_id != null
+        && isCompanyAdmin(resource.data.organization_id)
+        && request.resource.data.organization_id == resource.data.organization_id
+        && request.resource.data.role != 'PLATFORM_OWNER';
+
+      allow delete: if false;
     }
 
     match /organizations/{orgId} {
-      allow read, write: if false;
+      // Company creation and owner-profile creation happen atomically.
+      allow create: if signedIn()
+        && request.resource.data.status == 'ACTIVE'
+        && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.organization_id == orgId
+        && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ORG_OWNER';
+
+      allow read: if isMember(orgId) || isPlatformOwner();
+      allow update: if isCompanyAdmin(orgId) || isPlatformOwner();
+      allow delete: if false;
+
+      match /{collection}/{docId} {
+        // Platform administrators can see only the platform-level helpdesk data,
+        // not employee/workforce documents belonging to companies.
+        allow read: if (collection == 'helpdesk_tickets' && isPlatformOwner()) || isMember(orgId);
+
+        allow create: if isCompanyAdmin(orgId)
+          || (collection == 'leave_applications' && isMember(orgId) && request.resource.data.employee_id == userDoc().data.employee_id)
+          || (collection == 'attendance_records' && isMember(orgId) && request.resource.data.employee_id == userDoc().data.employee_id)
+          || (collection == 'expenses' && isMember(orgId))
+          || (collection == 'helpdesk_tickets' && isMember(orgId));
+
+        allow update: if isCompanyAdmin(orgId)
+          || (collection == 'attendance_records' && isMember(orgId))
+          || (collection == 'leave_applications' && isMember(orgId))
+          || (collection == 'expenses' && isMember(orgId))
+          || (collection == 'notifications' && isMember(orgId));
+
+        allow delete: if isCompanyAdmin(orgId);
+      }
     }
 
-    match /organizations/{orgId}/{collection}/{docId} {
-      allow read, write: if false;
-    }
-
+    // Platform-only operational collection. Company users cannot read or write it.
     match /password_reset_requests/{requestId} {
-      allow read, write: if false;
+      allow create: if signedIn();
+      allow read: if isPlatformOwner();
+      allow update, delete: if isPlatformOwner();
     }
 
     match /{document=**} {

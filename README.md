@@ -1,8 +1,8 @@
 # Zenora — Workforce Management Platform
 
-## Firebase-first deployment
+## Firebase Spark / no-Cloud-Functions architecture
 
-Zenora no longer uses the Render/Express/SQLite backend. The architecture is:
+Zenora uses only browser-safe Firebase services in this version:
 
 ```text
 React + Vite (Netlify)
@@ -10,13 +10,10 @@ React + Vite (Netlify)
         +-- Firebase Authentication
         +-- Cloud Firestore
         +-- Firebase Storage
-        +-- Firebase Cloud Functions
-                 |
-                 +-- EmailJS REST API (password-reset email)
-                 +-- Slack Incoming Webhook (notifications)
+        +-- Firebase Security Rules
 ```
 
-There is **no Render backend** in this version.
+There is **no Express server, Render backend, Firebase Cloud Function, or `zenoraApi`**.
 
 ## 1. Create Firebase project
 
@@ -24,8 +21,7 @@ Enable:
 
 - Authentication → Email/Password
 - Firestore Database
-- Storage
-- Cloud Functions
+- Storage (only if you use document/asset uploads)
 
 Add your Netlify domain to Firebase Authentication → Settings → Authorized domains.
 
@@ -40,170 +36,47 @@ VITE_FIREBASE_PROJECT_ID=
 VITE_FIREBASE_STORAGE_BUCKET=
 VITE_FIREBASE_MESSAGING_SENDER_ID=
 VITE_FIREBASE_APP_ID=
-VITE_FIREBASE_FUNCTIONS_REGION=asia-south1
 ```
 
-## 3. Firebase project selection
+Do not add `VITE_FIREBASE_FUNCTIONS_REGION`: Cloud Functions are not used.
 
-Copy `.firebaserc.example` to `.firebaserc` and replace the project ID.
+## 3. Firebase CLI is optional for development
 
-Install Firebase CLI if needed, then from the project root:
+You do **not** need Firebase CLI to run the React app locally or deploy the frontend through Netlify.
+
+If you later want to deploy Firestore/Storage rules from your own computer, install the Firebase CLI and run:
 
 ```bash
 firebase login
 firebase use YOUR_PROJECT_ID
+firebase deploy --only firestore:rules,firestore:indexes,storage
 ```
 
-Install dependencies:
+## 4. Company registration
 
-```bash
-cd frontend && npm install
-cd ../functions && npm install
-```
+Registration is now a single Firestore batch:
 
-## 4. EmailJS password reset
+1. Firebase Authentication creates the owner account.
+2. Firestore creates `organizations/{orgId}`.
+3. Firestore creates `users/{uid}` with `ORG_OWNER`.
+4. Firestore Security Rules verify the two writes belong together.
 
-Create an EmailJS email service and template. The template receives:
+No Cloud Function is required.
 
-```text
-to_email
-to_name
-reset_link
-company_name
-expires_minutes
-```
+## 5. Password reset
 
-Create Firebase Functions secrets:
+Password reset uses Firebase Authentication's browser SDK. The reset page is already implemented with `verifyPasswordResetCode` and `confirmPasswordReset`.
 
-```bash
-firebase functions:secrets:set EMAILJS_SERVICE_ID
-firebase functions:secrets:set EMAILJS_TEMPLATE_ID
-firebase functions:secrets:set EMAILJS_PUBLIC_KEY
-firebase functions:secrets:set EMAILJS_PRIVATE_KEY
-firebase functions:secrets:set APP_BASE_URL
-firebase functions:secrets:set SLACK_WEBHOOK_URL
-```
+No EmailJS private key or Firebase Functions secret is required.
 
-`APP_BASE_URL` must be the deployed Netlify URL, for example:
+## 6. Netlify
 
-```text
-https://your-zenora-app.netlify.app
-```
-
-The browser never receives the EmailJS private key or Slack webhook URL.
-
-## 5. Slack notifications
-
-Create a Slack Incoming Webhook and store its URL only as the Firebase secret `SLACK_WEBHOOK_URL`.
-
-The Firebase function can notify Slack for:
-
-- New company registration
-- Employee registration
-- Password-reset requests
-- Leave requests
-- Company helpdesk tickets
-
-## 6. Deploy Firebase
-
-From the project root:
-
-```bash
-firebase deploy --only firestore:rules,firestore:indexes,functions
-```
-
-Deploy Storage rules when Storage is enabled:
-
-```bash
-firebase deploy --only storage
-```
-
-## 7. Deploy React to Netlify
-
-Build:
-
-```bash
-cd frontend
-npm install
-npm run build
-```
-
-Netlify settings:
+The included `netlify.toml` uses:
 
 ```text
 Base directory: frontend
 Build command: npm run build
-Publish directory: frontend/dist
+Publish directory: dist
 ```
 
-The included `netlify.toml` configures the Vite build and SPA fallback.
-
-Add the same `VITE_FIREBASE_*` variables to Netlify → Site configuration → Environment variables.
-
-## Authentication model
-
-### Company users
-
-- ORG_OWNER
-- HR_ADMIN
-- PAYROLL_ADMIN
-- MANAGER
-- EMPLOYEE
-
-All company records are tenant-scoped by `organization_id`.
-
-### Platform admin
-
-`PLATFORM_OWNER` is intentionally isolated from company workforce data. The platform admin can access:
-
-- Platform dashboard
-- Registered companies
-- Company helpdesk
-- Password-reset request monitoring
-- Platform settings
-
-The platform admin cannot access company employee directories, employee profiles, payroll, attendance, leave, biometric logs, or other workforce records.
-
-## Employee login
-
-Employees can sign in using either:
-
-- Registered email address
-- Employee ID + company workspace/slug
-
-Employee IDs are unique only within a company.
-
-Therefore this is valid:
-
-```text
-Company A → Employee ID 123
-Company B → Employee ID 123
-```
-
-Firebase Auth emails remain globally unique because Firebase Authentication identifies accounts by email/UID. The employee ID itself remains tenant-scoped in Firestore.
-
-## Forgot password
-
-The flow is:
-
-```text
-Employee
-  ↓
-Forgot password
-  ↓
-Firebase Cloud Function
-  ↓
-Firebase Admin generates secure reset code
-  ↓
-EmailJS sends the reset link
-  ↓
-Netlify reset-password page
-  ↓
-Firebase Auth confirmPasswordReset()
-```
-
-Reset links are single-use Firebase Auth reset codes. EmailJS is only the delivery mechanism; password credentials are never sent through Slack or stored in Firestore.
-
-## Existing data migration
-
-The old SQLite database is intentionally not used by the Firebase runtime. Existing records should be migrated into Firestore with a controlled migration script after the Firebase project is created. Do not upload production passwords or credential material into Firestore.
+Add the six `VITE_FIREBASE_*` values to Netlify environment variables.

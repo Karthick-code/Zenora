@@ -4,6 +4,7 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
+  deleteUser,
 } from 'firebase/auth';
 import { auth } from '../services/firebase';
 import api from '../services/api';
@@ -59,15 +60,18 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (data) => {
     const credential = await createUserWithEmailAndPassword(auth, data.email.toLowerCase().trim(), data.password);
-    const res = await api.post('/auth/register', {
-      ...data,
-      firebaseUid: credential.user.uid,
-    });
-    if (res.data.success) {
-      await refreshUser();
-      return res.data;
+    try {
+      const res = await api.post('/auth/register', { ...data });
+      if (res.data.success) {
+        await refreshUser();
+        return res.data;
+      }
+      throw new Error('Company registration failed.');
+    } catch (error) {
+      // Do not leave an Auth account behind when the atomic Firestore registration fails.
+      try { await deleteUser(credential.user); } catch (cleanupError) { console.warn('Could not roll back Auth account:', cleanupError); }
+      throw error;
     }
-    return null;
   };
 
   const logout = async () => {
