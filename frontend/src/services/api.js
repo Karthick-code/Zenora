@@ -95,10 +95,11 @@ async function registerCompany(body) {
   const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48);
   if (!name || !slug) fail('Company name is required.');
 
-  const existing = await getDocs(query(collection(db, 'organizations'), where('slug', '==', slug), limit(1)));
-  if (!existing.empty) fail('A company with that workspace name already exists.', 409);
-
-  const orgId = doc(collection(db, 'organizations')).id;
+  // Use the normalized workspace slug as the organization document ID. This avoids
+  // requiring a pre-registration organization query, which would otherwise need
+  // public Firestore reads before the new user has a profile. A duplicate slug
+  // naturally fails the Firestore create rule because the document already exists.
+  const orgId = slug;
   const tenantDomain = `${slug}.zenora.com`;
   const timestamp = now();
   const org = {
@@ -110,6 +111,7 @@ async function registerCompany(body) {
     industry: body.industry || 'Technology & Software',
     company_size: body.companySize || '25-100',
     status: 'ACTIVE',
+    created_by_uid: auth.currentUser.uid,
     subscription_plan: 'GROWTH',
     subscription_status: 'ACTIVE',
     created_at: timestamp,

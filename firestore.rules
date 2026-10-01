@@ -63,8 +63,7 @@ service cloud.firestore {
       // Company creation and owner-profile creation happen atomically.
       allow create: if signedIn()
         && request.resource.data.status == 'ACTIVE'
-        && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.organization_id == orgId
-        && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ORG_OWNER';
+        && request.resource.data.created_by_uid == request.auth.uid;
 
       allow read: if isMember(orgId) || isPlatformOwner();
       allow update: if isCompanyAdmin(orgId) || isPlatformOwner();
